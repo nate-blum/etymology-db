@@ -7,8 +7,7 @@ from mwparserfromhell.nodes.template import Template
 
 from elements import Etymology
 
-
-unparsed_templates = Manager().dict()
+# unparsed_templates = Manager().dict()
 
 class RelType(Enum):
     Inherited = "inherited_from"
@@ -44,15 +43,15 @@ class RelType(Enum):
     GroupDerived = "group_derived_root"
 
 
-def parse_template(template_name: str, term: str, lang: str, template: Template) -> List[Etymology]:
+def parse_template(template_name: str, term: str, lang: str, template: Template, i: int) -> List[Etymology]:
     parser_func = get_template_parser(template_name.strip())
     if not parser_func:
-        counter = unparsed_templates.get(template_name, 0)
-        unparsed_templates[template_name] = counter + 1
-        logging.debug(f"Unrecognized template name `{template_name}` (term: {term}, lang: {lang})")
+        # counter = unparsed_templates.get(template_name, 0)
+        # unparsed_templates[template_name] = counter + 1
+        # logging.debug(f"Unrecognized template name `{template_name}` (term: {term}, lang: {lang})")
         return []
     try:
-        result = parser_func(term, lang, template)
+        result = parser_func(term, lang, template, i)
     except Exception:
         logging.warning(f"Error while parsing:\nTerm: {term}\nLanguage: {lang}\n"
                       f"Wikicode: {template}\n", exc_info=True)
@@ -60,8 +59,8 @@ def parse_template(template_name: str, term: str, lang: str, template: Template)
     return [result] if isinstance(result, Etymology) else result
 
 
-def get_template_parser(template_name: str) -> Callable[[str, str, Template], Etymology]:
-    default_func = lambda x, y, z: []
+def get_template_parser(template_name: str) -> Callable[[str, str, Template, int], Etymology]:
+    default_func = lambda x, y, z, a: []
     parse_dict = {
         "inherited": inherited,
         "inh": inherited,
@@ -159,7 +158,7 @@ def get_template_parser(template_name: str) -> Callable[[str, str, Template], Et
     return parse_dict.get(template_name)
 
 
-def derived(term: str, lang: str, template: Template):
+def derived(term: str, lang: str, template: Template, i: int):
     """
     This template is a "catch-all" that is used when neither {{inherited}} nor {{borrowed}} is applicable.
 
@@ -173,11 +172,12 @@ def derived(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Derived.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def borrowed(term: str, lang: str, template: Template):
+def borrowed(term: str, lang: str, template: Template, i: int):
     """
     This template is for loanwords that were borrowed during the time the borrowing language was spoken.
 
@@ -191,11 +191,12 @@ def borrowed(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Borrowed.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def learned_borrowing(term: str, lang: str, template: Template):
+def learned_borrowing(term: str, lang: str, template: Template, i: int):
     """
     This template is intended specifically for learned borrowings, those that were intentionally taken into a language
     from another not through normal means of language contact.
@@ -210,11 +211,12 @@ def learned_borrowing(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.LearnedBorrowing.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def semi_learned_borrowing(term: str, lang: str, template: Template):
+def semi_learned_borrowing(term: str, lang: str, template: Template, i: int):
     """
     This template is intended specifically for semi-learned borrowings,
     which are borrowings that have been partly reshaped by later sound change or analogy with inherited terms
@@ -229,11 +231,12 @@ def semi_learned_borrowing(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.SemiLearnedBorrowing.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def unadapted_borrowing(term: str, lang: str, template: Template):
+def unadapted_borrowing(term: str, lang: str, template: Template, i: int):
     """
     This template is intended for loanwords that have not been conformed to the morpho-syntactic,
     phonological and/or phonotactical rules of the target language.
@@ -248,11 +251,12 @@ def unadapted_borrowing(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.UnadaptedBorrowing.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def orthographic_borrowing(term: str, lang: str, template: Template):
+def orthographic_borrowing(term: str, lang: str, template: Template, i: int):
     """
     This template is intended specifically for loans from language A into language B, which are loaned only in its
     script form and not pronunciation and often become new words which are phonetically quite dissimilar.
@@ -267,11 +271,12 @@ def orthographic_borrowing(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.OrthographicBorrowing.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def inherited(term: str, lang: str, template: Template):
+def inherited(term: str, lang: str, template: Template, i: int):
     """
     This template is intended for terms that have an unbroken chain of inheritance from the source term in question.
 
@@ -285,11 +290,12 @@ def inherited(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Inherited.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def root(term: str, lang: str, template: Template):
+def root(term: str, lang: str, template: Template, i: int):
     """
     Root language derivation, a generalization of the deprecated pie root
 
@@ -297,7 +303,7 @@ def root(term: str, lang: str, template: Template):
     """
     p = [param for param in template.params if not param.showkey]
     etys = []
-    for i, root in enumerate(p[2:]):
+    for j, root in enumerate(p[2:]):
         etys.append(
             Etymology(
                 term=term,
@@ -305,12 +311,13 @@ def root(term: str, lang: str, template: Template):
                 reltype=RelType.Root.value,
                 related_lang=str(p[1]),
                 related_term=str(root),
-                position=i
+                position=j,
+                definition_num=i
             ))
     return etys
 
 
-def pie_root(term: str, lang: str, template: Template):
+def pie_root(term: str, lang: str, template: Template, i: int):
     """
     This template adds entries to a subcategory of Category:Terms derived from Proto-Indo-European roots.
 
@@ -318,7 +325,7 @@ def pie_root(term: str, lang: str, template: Template):
     """
     p = [param for param in template.params if not param.showkey]
     etys = []
-    for i, root in enumerate(p[1:]):
+    for j, root in enumerate(p[1:]):
         etys.append(
             Etymology(
                 term=term,
@@ -326,12 +333,13 @@ def pie_root(term: str, lang: str, template: Template):
                 reltype=RelType.Root.value,
                 related_lang="ine-pro",
                 related_term=str(root),
-                position=i
+                position=j,
+                definition_num=i
             ))
     return etys
 
 
-def affix(term: str, lang: str, template: Template):
+def affix(term: str, lang: str, template: Template, i: int):
     """
     This template shows the parts (morphemes) that make up a word.
 
@@ -339,7 +347,7 @@ def affix(term: str, lang: str, template: Template):
     """
     p = [param for param in template.params if not param.showkey]
     etys = []
-    for i, root in enumerate(p[1:]):
+    for j, root in enumerate(p[1:]):
         etys.append(
             Etymology(
                 term=term,
@@ -347,12 +355,13 @@ def affix(term: str, lang: str, template: Template):
                 reltype=RelType.Affix.value,
                 related_lang=str(p[0]),
                 related_term=str(root),
-                position=i
+                position=j,
+                definition_num=i
             ))
     return etys
 
 
-def prefix(term: str, lang: str, template: Template):
+def prefix(term: str, lang: str, template: Template, i: int):
     """
     This template shows the parts (morphemes) that make up a word.
 
@@ -364,7 +373,8 @@ def prefix(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Prefix.value,
         related_lang=str(p[0]),
-        related_term=str(p[1])
+        related_term=str(p[1]),
+        definition_num=i
     )
     if len(p) > 2 and str(p[2]):
         root = Etymology(
@@ -372,14 +382,15 @@ def prefix(term: str, lang: str, template: Template):
             lang=lang,
             reltype=RelType.PrefixRoot.value,
             related_lang=str(p[0]),
-            related_term=str(p[2])
+            related_term=str(p[2]),
+            definition_num=i
         )
         return [pre, root]
     else:
         return pre
 
 
-def confix(term: str, lang: str, template: Template):
+def confix(term: str, lang: str, template: Template, i: int):
     """
     For use in the Etymology sections of words which consist of only a prefix and a suffix, or which were formed by
     simultaneous application of a prefix and a suffix to some other element(s).
@@ -395,10 +406,11 @@ def confix(term: str, lang: str, template: Template):
             reltype=RelType.Confix.value,
             related_lang=str(p[0]),
             related_term=str(p[1]),
-            position=0
+            position=0,
+            definition_num=i
         ))
 
-    for i, root in enumerate(p[2:-1]):
+    for j, root in enumerate(p[2:-1]):
         etys.append(
             Etymology(
                 term=term,
@@ -406,7 +418,8 @@ def confix(term: str, lang: str, template: Template):
                 reltype=RelType.Confix.value,
                 related_lang=str(p[0]),
                 related_term=str(root),
-                position=i+1
+                position=j+1,
+                definition_num=i
             ))
 
     etys.append(
@@ -416,12 +429,13 @@ def confix(term: str, lang: str, template: Template):
             reltype=RelType.Confix.value,
             related_lang=str(p[0]),
             related_term=str(p[-1]),
-            position=len(p)-2
+            position=len(p)-2,
+            definition_num=i
         ))
     return etys
 
 
-def suffix(term: str, lang: str, template: Template):
+def suffix(term: str, lang: str, template: Template, i: int):
     """
     This template shows the parts (morphemes) that make up a word.
 
@@ -435,19 +449,21 @@ def suffix(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Suffix.value,
         related_lang=str(p[0]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
     root = Etymology(
         term=term,
         lang=lang,
         reltype=RelType.SuffixRoot.value,
         related_lang=str(p[0]),
-        related_term=str(p[1])
+        related_term=str(p[1]),
+        definition_num=i
     )
     return [root, suf]
 
 
-def compound(term: str, lang: str, template: Template):
+def compound(term: str, lang: str, template: Template, i: int):
     """
     This template is used in the etymology section to display etymologies for compound words: words that are made up of
     multiple parts.
@@ -456,7 +472,7 @@ def compound(term: str, lang: str, template: Template):
     """
     p = [param for param in template.params if not param.showkey]
     etys = []
-    for i, root in enumerate(p[1:]):
+    for j, root in enumerate(p[1:]):
         etys.append(
             Etymology(
                 term=term,
@@ -464,12 +480,13 @@ def compound(term: str, lang: str, template: Template):
                 reltype=RelType.Compound.value,
                 related_lang=str(p[0]),
                 related_term=str(root),
-                position=i
+                position=j,
+                definition_num=i
             ))
     return etys
 
 
-def blend(term: str, lang: str, template: Template):
+def blend(term: str, lang: str, template: Template, i: int):
     """
     A word or name that combines two words, typically starting with the start of one word and ending with the end of
     another, such as smog (from smoke and fog) or Wiktionary (from wiki and dictionary). Many blends are portmanteaus.
@@ -478,7 +495,7 @@ def blend(term: str, lang: str, template: Template):
     """
     p = [param for param in template.params if not param.showkey]
     etys = []
-    for i, root in enumerate(p[1:]):
+    for j, root in enumerate(p[1:]):
         etys.append(
             Etymology(
                 term=term,
@@ -486,12 +503,13 @@ def blend(term: str, lang: str, template: Template):
                 reltype=RelType.Blend.value,
                 related_lang=str(p[0]),
                 related_term=str(root),
-                position=i
+                position=j,
+                definition_num=i
             ))
     return etys
 
 
-def clipping(term: str, lang: str, template: Template):
+def clipping(term: str, lang: str, template: Template, i: int):
     """
     A shortening of a word, without changing meaning or part of speech.
 
@@ -505,11 +523,12 @@ def clipping(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Clipping.value,
         related_lang=str(p[0]),
-        related_term=str(p[1])
+        related_term=str(p[1]),
+        definition_num=i
     )
 
 
-def abbreviation(term: str, lang: str, template: Template):
+def abbreviation(term: str, lang: str, template: Template, i: int):
     """
     Abbreviations of another word. Differs from clipping in that
     abbreviations are based on written shortenings instead of spoken ones.
@@ -524,11 +543,12 @@ def abbreviation(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Abbreviation.value,
         related_lang=str(p[0]),
-        related_term=str(p[1])
+        related_term=str(p[1]),
+        definition_num=i
     )
 
 
-def initialism(term: str, lang: str, template: Template):
+def initialism(term: str, lang: str, template: Template, i: int):
     """
     Initialisms of another word/phrase
 
@@ -542,11 +562,12 @@ def initialism(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Initialism.value,
         related_lang=str(p[0]),
-        related_term=str(p[1])
+        related_term=str(p[1]),
+        definition_num=i
     )
 
 
-def back_form(term: str, lang: str, template: Template):
+def back_form(term: str, lang: str, template: Template, i: int):
     """
     A term formed by removing an apparent or real prefix or suffix from an older term; for example, the noun pea arose
     because the final /z/ sound in pease sounded like a plural suffix. Similarly, the verb edit is a back-formation from
@@ -563,11 +584,12 @@ def back_form(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.BackForm.value,
         related_lang=str(p[0]),
-        related_term=str(p[1])
+        related_term=str(p[1]),
+        definition_num=i
     )
 
 
-def doublet(term: str, lang: str, template: Template):
+def doublet(term: str, lang: str, template: Template, i: int):
     """
     In etymology, two or more words in the same language are called doublets or etymological twins or twinlings
     (or possibly triplets, and so forth) when they have different phonological forms but the same etymological root.
@@ -576,7 +598,7 @@ def doublet(term: str, lang: str, template: Template):
     """
     p = [param for param in template.params if not param.showkey]
     etys = []
-    for i, doub in enumerate(p[1:]):
+    for j, doub in enumerate(p[1:]):
         etys.append(
             Etymology(
                 term=term,
@@ -584,12 +606,13 @@ def doublet(term: str, lang: str, template: Template):
                 reltype=RelType.Doublet.value,
                 related_lang=str(p[0]),
                 related_term=str(doub),
-                position=i
+                position=j,
+                definition_num=i
             ))
     return etys
 
 
-def onomatopoeic(term: str, lang: str, template: Template):
+def onomatopoeic(term: str, lang: str, template: Template, i: int):
     """
     This templates indicates that a word is an onomatopoeia.
 
@@ -601,11 +624,12 @@ def onomatopoeic(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Onomatopoeia.value,
         related_lang=str(p[0]),
-        related_term=term
+        related_term=term,
+        definition_num=i
     )
 
 
-def calque(term: str, lang: str, template: Template):
+def calque(term: str, lang: str, template: Template, i: int):
     """
     In linguistics, a calque or loan translation is a word or phrase borrowed from another language by literal,
     word-for-word or root-for-root translation.
@@ -620,11 +644,12 @@ def calque(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Calque.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def semantic_loan(term: str, lang: str, template: Template):
+def semantic_loan(term: str, lang: str, template: Template, i: int):
     """
     Semantic borrowing is a special case of calque or loan-translation, in which the word in the borrowing
     language already existed and simply had a new meaning added to it.
@@ -639,11 +664,12 @@ def semantic_loan(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.SemanticLoan.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def named_after(term: str, lang: str, template: Template):
+def named_after(term: str, lang: str, template: Template, i: int):
     """
     Use this template in an etymology section of eponyms.
 
@@ -657,11 +683,12 @@ def named_after(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.NamedAfter.value,
         related_lang=str(p[0]),
-        related_term=str(p[1])
+        related_term=str(p[1]),
+        definition_num=i
     )
 
 
-def phono_semantic_matching(term: str, lang: str, template: Template):
+def phono_semantic_matching(term: str, lang: str, template: Template, i: int):
     """
     Phono-semantic matching (PSM) is the incorporation of a word into one language from another, often creating
     a neologism, where the word's non-native quality is hidden by replacing it with phonetically and semantically
@@ -679,11 +706,12 @@ def phono_semantic_matching(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.PhonoSemanticMatching.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def mention(term: str, lang: str, template: Template):
+def mention(term: str, lang: str, template: Template, i: int):
     """
     Use this template when a particular term is mentioned within running English text.
 
@@ -697,11 +725,12 @@ def mention(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Mention.value,
         related_lang=str(p[0]),
-        related_term=str(p[1])
+        related_term=str(p[1]),
+        definition_num=i
     )
 
 
-def cognate(term: str, lang: str, template: Template):
+def cognate(term: str, lang: str, template: Template, i: int):
     """
     This template is used to indicate cognacy with terms in other languages that are not ancestors of the given term
     (hence none of {{inherited}}, {{borrowed}}, and {{derived}} are applicable).
@@ -717,11 +746,12 @@ def cognate(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Cognate.value,
         related_lang=str(p[0]),
-        related_term=str(p[1])
+        related_term=str(p[1]),
+        definition_num=i
     )
 
 
-def non_cognate(term: str, lang: str, template: Template):
+def non_cognate(term: str, lang: str, template: Template, i: int):
     """
     This template is used to format terms in other languages that are mentioned in etymology sections
     but are not cognate with the page's term.
@@ -736,11 +766,12 @@ def non_cognate(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Mention.value,
         related_lang=str(p[0]),
-        related_term=str(p[1])
+        related_term=str(p[1]),
+        definition_num=i
     )
 
 
-def derived_parsed(term: str, lang: str, template: Template):
+def derived_parsed(term: str, lang: str, template: Template, i: int):
     """
     Same as derived, but a custom solution that automatically parses etyl templates in which the word is located
     outside of the template.
@@ -753,11 +784,12 @@ def derived_parsed(term: str, lang: str, template: Template):
         lang=lang,
         reltype=RelType.Derived.value,
         related_lang=str(p[1]),
-        related_term=str(p[2])
+        related_term=str(p[2]),
+        definition_num=i
     )
 
 
-def unnest_template(term: str, lang: str, template: Template, reltype: RelType):
+def unnest_template(term: str, lang: str, template: Template, reltype: RelType, i: int):
     """
     Builds etymologies out of nested templates, assigning the immediate parent to a given child
     in cases of deeply nested templates.
@@ -769,12 +801,12 @@ def unnest_template(term: str, lang: str, template: Template, reltype: RelType):
         reltype=reltype.value,
         related_lang=None,
         related_term=None,
-        group_tag=Etymology.generate_root_tag()
+        definition_num=i
     )
     etys = [parent_ety]
     for p in template.params:
         for child_template in p.value.filter_templates(recursive=False):
-            child_etys = parse_template(str(child_template.name), term, lang, child_template)
+            child_etys = parse_template(str(child_template.name), term, lang, child_template, i)
             for child_ety in child_etys:
                 if child_ety.parent_tag:
                     # This means the template was at least doubly nested and a parent has already been assigned
@@ -787,32 +819,32 @@ def unnest_template(term: str, lang: str, template: Template, reltype: RelType):
     return etys
 
 
-def affix_parsed(term: str, lang: str, template: Template):
+def affix_parsed(term: str, lang: str, template: Template, i: int):
     """
     Same as affix, but a custom solution that parses plain text to find strings of "+" - separated terms.
 
     Child templates are extracted and linked hierarchically.
     Params: (Template 1, template n...)
     """
-    return unnest_template(term=term, lang=lang, template=template, reltype=RelType.GroupAffix)
+    return unnest_template(term=term, lang=lang, template=template, reltype=RelType.GroupAffix, i=i)
 
 
-def from_parsed(term: str, lang: str, template: Template):
+def from_parsed(term: str, lang: str, template: Template, i: int):
     """
     Custom solution that finds chains of derivation.
 
     Child templates are extracted and linked hierarchically.
     Params: (Template 1, template n...)
     """
-    return unnest_template(term=term, lang=lang, template=template, reltype=RelType.GroupDerived)
+    return unnest_template(term=term, lang=lang, template=template, reltype=RelType.GroupDerived, i=i)
 
 
-def related_parsed(term: str, lang: str, template: Template):
+def related_parsed(term: str, lang: str, template: Template, i: int):
     """
     Custom solution to find morphemes related to both each other and the original word.
 
     Child templates are extracted and linked hierarchically.
     Params: (Template 1, template n...)
     """
-    return unnest_template(term=term, lang=lang, template=template, reltype=RelType.GroupMention)
+    return unnest_template(term=term, lang=lang, template=template, reltype=RelType.GroupMention, i=i)
 

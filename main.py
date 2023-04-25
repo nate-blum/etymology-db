@@ -1,6 +1,5 @@
-import bz2
-import gzip
 import csv
+import bz2
 import logging
 import re
 from multiprocessing import Pool
@@ -18,22 +17,19 @@ from mwparserfromhell.nodes.wikilink import Wikilink
 from mwparserfromhell.wikicode import Wikicode
 
 from elements import Etymology
-from templates import parse_template, unparsed_templates
+from templates import parse_template
 
 NAMESPACE = "{http://www.mediawiki.org/xml/export-0.10/}"
 
-WIKI_FILENAME = "enwiktionary-latest-pages-articles.xml.bz2"
-WIKTIONARY_URL = "https://dumps.wikimedia.your.org/enwiktionary/latest/{}".format(WIKI_FILENAME)
+WIKI_FILENAME = "enwiktionary-20220820-pages-articles-multistream.xml.bz2"
+WIKTIONARY_URL = f"http://dumps.wikimedia.your.org/enwiktionary/20220820/{WIKI_FILENAME}"
 
-
-DOWNLOAD_PATH = Path("/tmp").joinpath(WIKI_FILENAME)
+DOWNLOAD_PATH = Path("./").joinpath(WIKI_FILENAME)
 OUTPUT_DIR = Path.cwd()
-ETYMOLOGY_PATH = OUTPUT_DIR.joinpath("etymology.csv.gz")
-
+ETYMOLOGY_PATH = OUTPUT_DIR.joinpath("etymology_orig.csv")
 
 def tag(s: str):
     return NAMESPACE + s
-
 
 def download(url: str) -> None:
     """
@@ -50,7 +46,7 @@ def download(url: str) -> None:
     logging.info("Downloaded {}".format(url))
 
 def write_all():
-    with gzip.open(ETYMOLOGY_PATH, "wt") as f_out:
+    with open(ETYMOLOGY_PATH, "w") as f_out:
         writer = csv.writer(f_out)
         writer.writerow(Etymology.header())
         entries_parsed = 0
@@ -65,13 +61,14 @@ def write_all():
             if elapsed.total_seconds() > 1:
                 elapsed -= timedelta(microseconds=elapsed.microseconds)
             print(f"Entries parsed: {entries_parsed} Time elapsed: {elapsed} "
-                  f"Entries per second: {entries_parsed // elapsed.total_seconds()}{' ' * 10}", end="\r", flush=True)
+                    f"Entries per second: {entries_parsed // elapsed.total_seconds()}{' ' * 10}", end="\r", flush=True)
+        print("")
 
 
 def stream_terms() -> Generator[Tuple[str, str], None, None]:
     with bz2.open(DOWNLOAD_PATH, "rb") as f_in:
         for event, elem in etree.iterparse(f_in, huge_tree=True):
-            if elem.tag == tag("text"):
+            if "text" in elem.tag:
                 page = elem.getparent().getparent()
                 ns = page.find(tag("ns"))
                 if ns is not None and ns.text == "0":
@@ -79,19 +76,22 @@ def stream_terms() -> Generator[Tuple[str, str], None, None]:
                     yield term, elem.text
                 page.clear()
 
-
 def parse_wikitext(unparsed_data: Tuple[str, str]) -> List[Etymology]:
     term, unparsed_wikitext = unparsed_data
     wikitext = mwp.parse(unparsed_wikitext)
     parsed_etys = []
     for language_section in wikitext.get_sections(levels=[2]):
         lang = str(language_section.nodes[0].title)
-        etymologies = language_section.get_sections(matches="Etymology", flat=True)
+        etymologies = language_section.get_sections(matches="Etymology", flat=True, include_headings=True)
         for e in etymologies:
+            etym_idx = 0
+            if type(e.nodes[0]) == mwp.nodes.Heading and any(char.isdigit() for char in str(e.nodes[0].title)):
+                etym_idx = int(str(e.nodes[0].title).replace("Etymology ", "")) - 1 
+
             clean_wikicode(e)
-            for n in e.ifilter_templates(recursive=False):
-                name = str(n.name)
-                parsed = parse_template(name, term, lang, n)
+            for template in e.ifilter_templates(recursive=False):
+                name = str(template.name)
+                parsed = parse_template(name, term, lang, template, etym_idx)
                 parsed_etys.extend([e for e in parsed if e.is_valid()])
     return [e for e in parsed_etys if e.is_valid()]
 
@@ -257,6 +257,5 @@ def inherited(t: Template) -> Generator[List[str], None, None]:
 
 if __name__ == "__main__":
     logging.basicConfig(level="INFO")
-    download(WIKTIONARY_URL)
+    # download(WIKTIONARY_URL)
     write_all()
-    print(dict(sorted(unparsed_templates.items(), key=lambda x: x[1], reverse=True)))
