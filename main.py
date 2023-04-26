@@ -86,7 +86,8 @@ def parse_wikitext(unparsed_data: Tuple[str, str]) -> List[Etymology]:
         for e in etymologies:
             etym_idx = 0
             if type(e.nodes[0]) == mwp.nodes.Heading and any(char.isdigit() for char in str(e.nodes[0].title)):
-                etym_idx = int(str(e.nodes[0].title).replace("Etymology ", "")) - 1 
+                nums = re.findall(r'\b\d+\b', str(e.nodes[0].title))
+                etym_idx = int(nums[0]) - 1 if len(nums) > 0 else 0
 
             clean_wikicode(e)
             for template in e.ifilter_templates(recursive=False):
